@@ -29,6 +29,14 @@ void Walk() {
 for permission: motion on iOS (`NSMotionUsageDescription`, which an app's own `ui.toml` can
 word), activity recognition on Android 10 and later.
 
+
+## Install
+
+In an app made with `ui new`:
+
+```bash
+eskiuc add pedometer --git https://github.com/eskiu-lang/ui-pedometer --rev v0.1.0
+```
 ## Where the steps come from
 
 - **iOS**: CMPedometer, which keeps the device's steps for the last seven days whether the app
