@@ -1,0 +1,10 @@
+# What an app that depends on this package gets. An app's own ui.toml wins for the same key,
+# so it can say in its own words why it counts steps.
+[ios]
+frameworks = ["CoreMotion"]
+
+[ios.plist]
+NSMotionUsageDescription = "Counts your steps"
+
+[android]
+permissions = ["android.permission.ACTIVITY_RECOGNITION"]

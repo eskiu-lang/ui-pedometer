@@ -1,0 +1,118 @@
+// <pedometer> with no device: the platform's side is stand-ins that count their calls, and the
+// test sends the events a platform would. Each check that fails exits with 1.
+import <io>;
+import <string>;
+import <ui>;
+import <pedometer>;
+
+int starts;
+int stops;
+int samples;
+int last_query;
+double last_from;
+double last_to;
+int queries;
+
+void pedometer_start() { starts++; }
+void pedometer_stop() { stops++; }
+void pedometer_sample() { samples++; }
+void pedometer_query(int id, double from_ms, double to_ms) { queries++; last_query = id; last_from = from_ms; last_to = to_ms; }
+
+String shown;
+
+void check(bool ok, string what) {
+    if (!ok) {
+        printf("FAIL %s (shown: %s)\n", what, shown.data == null ? "" : shown.data);
+        exit(1);
+    }
+}
+
+void say(Steps s, String* text) {
+    if (s.status == StepsReady) { String_format(text, "%lld", s.steps); }
+    else if (s.status == StepsDenied) { String_from(text, "denied"); }
+    else if (s.status == StepsUnavailable) { String_from(text, "unavailable"); }
+    else { String_from(text, "waiting"); }
+}
+
+*Signal<bool> live;
+*Signal<int64> day;
+
+int main() {
+    Ui runtime;
+    ui_init(&runtime, void(*uint8 data, int len) {
+        List<Mutation> items;
+        ui_decode(data, len, &items);
+        for (i in 0..items.size) {
+            if (items.data[i].op == 3) { String_from(&shown, items.data[i].text); }
+        }
+        items.free();
+        ui_complete(ui.sequence);
+    });
+    live = signal_new<bool>(true);
+    day = signal_new<int64>(1000);
+    ui_mount() {
+        Column(Style{}) {
+            if (live.get()) {
+                Row(Style{key: key(1)}, void() {
+                    String text;
+                    defer String_free(&text);
+                    say(use_steps(), &text);
+                    Text(text.data);
+                });
+            } else {
+                Row(Style{key: key(2)}, void() {
+                    String text;
+                    defer String_free(&text);
+                    int64 from = day.get();
+                    say(use_steps_between(from, from + 500), &text);
+                    Text(text.data);
+                });
+            }
+        }
+    }
+    ui_frame();
+    check(starts == 1, "use_steps starts counting");
+    check(String_eq_cstr(&shown, "waiting") == 1, "waiting at first");
+    ui_event_native("pedometer", "steps 12 8.50");
+    ui_frame();
+    check(String_eq_cstr(&shown, "12") == 1, "a live count");
+    ui_event_native("pedometer", "query 99 40");
+    ui_frame();
+    check(String_eq_cstr(&shown, "12") == 1, "a query's answer is not a live count");
+    ui_set_active(false);
+    ui_set_active(true);
+    check(samples == 1, "coming to the foreground saves a sample");
+    ui_event_native("pedometer", "denied");
+    ui_frame();
+    check(String_eq_cstr(&shown, "denied") == 1, "denied");
+
+    live.set(false);
+    ui_frame();
+    check(stops == 1, "the last use_steps to unmount stops counting");
+    check(queries == 1 && last_from == 1000 && last_to == 1500, "use_steps_between asks for its range");
+    int first = last_query;
+    ui_event_native("pedometer", "steps 5 -1");
+    ui_event_native("pedometer", "query 12345 77");
+    ui_frame();
+    check(String_eq_cstr(&shown, "waiting") == 1, "only its own answer counts");
+    String answer;
+    String_format(&answer, "query %d 321", first);
+    ui_event_native("pedometer", answer.data);
+    ui_frame();
+    check(String_eq_cstr(&shown, "321") == 1, "the steps in the range");
+    day.set(2000);
+    ui_frame();
+    check(queries == 2 && last_from == 2000 && last_query != first, "a new range asks again");
+    ui_set_active(false);
+    ui_set_active(true);
+    check(queries == 3, "and so does coming to the foreground");
+    String_format(&answer, "query %d unavailable", last_query);
+    ui_event_native("pedometer", answer.data);
+    ui_frame();
+    check(String_eq_cstr(&shown, "unavailable") == 1, "an unavailable answer");
+    String_free(&answer);
+    ui_shutdown();
+    String_free(&shown);
+    printf("PASS pedometer\n");
+    return 0;
+}

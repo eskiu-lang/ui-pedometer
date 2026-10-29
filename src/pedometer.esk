@@ -1,0 +1,140 @@
+// <pedometer>: the steps the user walks, for apps on eskiu-lang/ui. use_steps counts them live
+// while a component is mounted; use_steps_between asks for the steps walked between two times,
+// the app open or not. CMPedometer on iOS; the step counter sensor on Android; nothing on the
+// web and the desktop. The platform asks the user for permission the first time.
+//
+// Android keeps no history of steps: its sensor counts from the last boot. This package saves
+// a sample of that count each time it reads it (while use_steps or use_steps_between is mounted
+// and each time the app comes to the foreground), and answers a range from those samples, so
+// the steps between two times are known when the app was used before and after them with no
+// reboot in between. Steps walked across a reboot are counted from the reboot on.
+import <string>;
+import <list>;
+import <ui>;
+
+enum StepsStatus { StepsWaiting, StepsReady, StepsDenied, StepsUnavailable }
+
+// A count. `status` is a StepsStatus; `steps` is meaningful once it is StepsReady. Live counts
+// on iOS also have the distance walked in meters (-1 when the platform does not say).
+struct Steps {
+    int status;
+    int64 steps;
+    double distance = -1;
+}
+
+// The platform's side (native/ios, native/android, native/web). pedometer_start counts live
+// from now: "steps N DISTANCE" on the "pedometer" channel (DISTANCE -1 when unknown), or
+// "denied", "unavailable". pedometer_query answers "query ID N" or "query ID denied" /
+// "query ID unavailable" for the steps between two times (milliseconds since 1970).
+// pedometer_sample makes Android save a sample of its counter (nothing elsewhere).
+extern void pedometer_start();
+extern void pedometer_stop();
+extern void pedometer_query(int id, double from_ms, double to_ms);
+extern void pedometer_sample();
+
+Steps pedometer_latest;
+int pedometer_users;
+int pedometer_next_query;
+
+// The words of a payload, split on spaces; the caller frees them.
+void pedometer_words(string payload, List<String>* words) {
+    String text;
+    defer String_free(&text);
+    String_from(&text, payload);
+    String_split(&text, ' ', words);
+}
+
+void pedometer_free_words(List<String>* words) {
+    for (i in 0..words.size) { String_free(&words.data[i]); }
+    words.free();
+}
+
+// A message on the "pedometer" channel into a count; false when it is a query's answer.
+bool pedometer_read_live(string payload, Steps* out) {
+    if (payload == null) { return false; }
+    if (strcmp(payload, "denied") == 0) { out.status = StepsDenied; return true; }
+    if (strcmp(payload, "unavailable") == 0) { out.status = StepsUnavailable; return true; }
+    List<String> words;
+    pedometer_words(payload, &words);
+    bool live = words.size == 3 && String_eq_cstr(&words.data[0], "steps") == 1;
+    if (live) {
+        out.status = StepsReady;
+        out.steps = (int64)String_to_double(&words.data[1]);
+        out.distance = String_to_double(&words.data[2]);
+    }
+    pedometer_free_words(&words);
+    return live;
+}
+
+// A query's answer for `id` into a count; false when the message is not that answer.
+bool pedometer_read_query(string payload, int id, Steps* out) {
+    if (payload == null) { return false; }
+    List<String> words;
+    pedometer_words(payload, &words);
+    bool mine = words.size == 3 && String_eq_cstr(&words.data[0], "query") == 1 &&
+        (int)String_to_double(&words.data[1]) == id;
+    if (mine) {
+        if (String_eq_cstr(&words.data[2], "denied") == 1) { out.status = StepsDenied; }
+        else if (String_eq_cstr(&words.data[2], "unavailable") == 1) { out.status = StepsUnavailable; }
+        else {
+            out.status = StepsReady;
+            out.steps = (int64)String_to_double(&words.data[2]);
+            out.distance = -1;
+        }
+    }
+    pedometer_free_words(&words);
+    return mine;
+}
+
+// The steps walked since the calling scope mounted, live; the scope renders again with each
+// new count. The first use starts the platform's counting (and asks for permission), the last
+// one to unmount stops it; a later use counts from when it mounted only if it is the first.
+Steps use_steps() {
+    *Signal<int> updates = use_signal<int>(0);
+    use_native_event("pedometer", void(string payload) {
+        if (pedometer_read_live(payload, &pedometer_latest)) { updates.set(updates.value + 1); }
+    });
+    use_mount(void() {
+        pedometer_users++;
+        if (pedometer_users == 1) {
+            pedometer_latest = Steps{};
+            pedometer_start();
+        }
+    }, void() {
+        pedometer_users--;
+        if (pedometer_users == 0) { pedometer_stop(); }
+    });
+    use_app_state(void(bool active) { if (active) { pedometer_sample(); } });
+    updates.get();
+    return pedometer_latest;
+}
+
+// The steps walked between `from_ms` and `to_ms` (milliseconds since 1970), the app open or
+// not; the scope renders again when the answer comes. It is asked again when the range
+// changes and each time the app comes to the foreground. iOS answers for the last seven days.
+Steps use_steps_between(int64 from_ms, int64 to_ms) {
+    *Signal<int> status = use_signal<int>(StepsWaiting);
+    *Signal<int64> count = use_signal<int64>(0);
+    *Signal<int> query = use_signal<int>(0);
+    *Signal<int64> asked_from = use_signal<int64>(-1);
+    *Signal<int64> asked_to = use_signal<int64>(-1);
+    if (asked_from.value != from_ms || asked_to.value != to_ms) {
+        asked_from.value = from_ms;
+        asked_to.value = to_ms;
+        query.value = ++pedometer_next_query;
+        pedometer_query(query.value, (double)from_ms, (double)to_ms);
+    }
+    use_native_event("pedometer", void(string payload) {
+        Steps got;
+        if (pedometer_read_query(payload, query.value, &got)) {
+            count.set(got.steps);
+            status.set(got.status);
+        }
+    });
+    use_app_state(void(bool active) {
+        if (!active) { return; }
+        query.value = ++pedometer_next_query;
+        pedometer_query(query.value, (double)asked_from.value, (double)asked_to.value);
+    });
+    return Steps{status.get(), count.get(), -1};
+}

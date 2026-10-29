@@ -1,0 +1,53 @@
+// Steps: today's steps (since midnight, the app open or not) and the steps of this walk,
+// live, from <pedometer>. `ui run ios` or `ui run android` on a device (simulators have no
+// step counter).
+import <string>;
+import <time>;
+import <ui>;
+import <ui/kit>;
+import <pedometer>;
+
+void show(Steps s, String* text) {
+    if (s.status == StepsReady) { String_format(text, "%lld", s.steps); }
+    else if (s.status == StepsDenied) { String_from(text, "No permission"); }
+    else if (s.status == StepsUnavailable) { String_from(text, "No step counter"); }
+    else { String_from(text, "..."); }
+}
+
+void Today() {
+    // Local midnight: the time of day in the local zone, taken off now.
+    int64 now = time_now_ms();
+    int64 local = now + (int64)time_local_offset(now / 1000) * 1000;
+    int64 midnight = now - local % (24 * 60 * 60 * 1000);
+    Card() {
+        Secondary("Today");
+        String text;
+        defer String_free(&text);
+        show(use_steps_between(midnight, now), &text);
+        TextWith(Style{font_size: 40, font_weight: 800, color: kit.ink}, text.data);
+    }
+}
+
+void Walk() {
+    Card() {
+        Secondary("This walk");
+        String text;
+        defer String_free(&text);
+        show(use_steps(), &text);
+        TextWith(Style{font_size: 40, font_weight: 800, color: kit.ink}, text.data);
+    }
+}
+
+void Demo() {
+    Column(Style{grow: 1, padding: 24, gap: 16, justify: JustifyCenter, background: kit.page}) {
+        Today();
+        Walk();
+    }
+}
+
+void ui_app_start(int which) {
+    kit_follow_system();
+    ui_mount() { Demo(); }
+}
+
+void ui_app_stop() {}
