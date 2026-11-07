@@ -30,6 +30,10 @@ for permission: motion on iOS (`NSMotionUsageDescription`, which an app's own `u
 word), activity recognition on Android 10 and later.
 
 
+## Documentation
+
+Every public function and type, with its documentation, is in the [API reference](docs/api.md).
+
 ## Install
 
 In an app made with `ui new`:
