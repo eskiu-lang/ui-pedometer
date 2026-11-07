@@ -12,6 +12,8 @@ import <string>;
 import <list>;
 import <ui>;
 
+// Where a Steps count stands: waiting for the platform, a count is ready, the user denied
+// the permission, or there is no step counter (a simulator, the web, the desktop).
 enum StepsStatus { StepsWaiting, StepsReady, StepsDenied, StepsUnavailable }
 
 // A count. `status` is a StepsStatus; `steps` is meaningful once it is StepsReady. Live counts
@@ -44,6 +46,7 @@ void pedometer_words(string payload, List<String>* words) {
     String_split(&text, ' ', words);
 }
 
+// Frees the words pedometer_words made, and the list's storage.
 void pedometer_free_words(List<String>* words) {
     for (i in 0..words.size) { String_free(&words.data[i]); }
     words.free();
