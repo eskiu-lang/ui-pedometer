@@ -32,6 +32,12 @@ public final class EskiuPedometer {
 
     public static void setup() {}
 
+    // pedometer_supported (pedometer.c): the device has a step counter sensor.
+    public static boolean supported() {
+        Activity activity = UiActivity.current();
+        return activity != null && counter(activity) != null;
+    }
+
     private static void withPermission(Activity activity, java.util.function.Consumer<Boolean> done) {
         if (Build.VERSION.SDK_INT < 29) { done.accept(true); return; }
         UiActivity.requestPermissions(new String[] {Manifest.permission.ACTIVITY_RECOGNITION}, done);

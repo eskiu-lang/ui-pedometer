@@ -111,6 +111,8 @@ int main() {
     ui_frame();
     check(String_eq_cstr(&shown, "unavailable") == 1, "an unavailable answer");
     String_free(&answer);
+    // Computers count no steps, and say so before any hook is used.
+    check(!pedometer_supported(), "no step counter on the desktop");
     ui_shutdown();
     String_free(&shown);
     printf("PASS pedometer\n");

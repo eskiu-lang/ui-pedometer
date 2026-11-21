@@ -20,6 +20,9 @@ static BOOL deniedError(NSError *error) {
                                              error.code == CMErrorMotionActivityNotEntitled);
 }
 
+// pedometer_supported: the device counts steps (a simulator does not).
+int pedometer_native_supported(void) { return CMPedometer.isStepCountingAvailable ? 1 : 0; }
+
 void pedometer_start(void) {
     if (!CMPedometer.isStepCountingAvailable) { ui_native_emit("pedometer", "unavailable"); return; }
     if (denied()) { ui_native_emit("pedometer", "denied"); return; }

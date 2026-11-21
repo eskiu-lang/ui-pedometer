@@ -26,3 +26,12 @@ void pedometer_query(int id, double from_ms, double to_ms) {
     (*env)->CallStaticVoidMethod(env, type, method, (jint)id, (jlong)from_ms, (jlong)to_ms);
     (*env)->DeleteLocalRef(env, type);
 }
+
+int pedometer_native_supported(void) {
+    JNIEnv *env = ui_jni_env();
+    jclass type = pedometer_class(env);
+    if (!type) return 0;
+    jboolean has = (*env)->CallStaticBooleanMethod(env, type, (*env)->GetStaticMethodID(env, type, "supported", "()Z"));
+    (*env)->DeleteLocalRef(env, type);
+    return has ? 1 : 0;
+}
