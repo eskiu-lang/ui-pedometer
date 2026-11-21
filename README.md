@@ -65,8 +65,8 @@ eskiuc add pedometer --git https://github.com/eskiu-packages/ui-pedometer --rev 
 | macOS, Linux, Windows | none: computers have no step counter | always `StepsUnavailable` |
 
 On the desktops the package has native code that answers `StepsUnavailable` for every use, so
-an app that uses it builds and runs there and shows that there is no count. It never makes up
-steps.
+an app that uses it builds and runs there and shows that there is no count, and
+`pedometer_supported()` is false. It never makes up steps.
 
 `examples/steps` shows today's steps and this walk's (`ui run ios` or `ui run android`, on a
 device).
