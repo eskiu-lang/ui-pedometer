@@ -72,6 +72,17 @@ bool pedometer_read_query(string payload, int id, Steps* out)
 
 A query's answer for `id` into a count; false when the message is not that answer.
 
+### pedometer_supported
+
+```eskiu
+bool pedometer_supported()
+```
+
+Whether the device counts steps, known before any hook is used: false on a simulator, a
+phone without the sensor, the web and the desktop (browsers and computers have no step
+counter), where every Steps is StepsUnavailable. True does not mean the user allowed it:
+that is asked when the first hook mounts.
+
 ### use_steps
 
 ```eskiu

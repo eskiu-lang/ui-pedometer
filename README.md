@@ -25,7 +25,11 @@ void Walk() {
 | `use_steps_between(from_ms, to_ms)` | the steps walked between two times (milliseconds since 1970), asked again when the range changes and each time the app comes to the foreground |
 
 `Steps.status` is `StepsWaiting`, `StepsReady`, `StepsDenied` (the user said no) or
-`StepsUnavailable` (no step counter: a simulator, the web, the desktop). The first use asks
+`StepsUnavailable` (no step counter: a simulator, the web, the desktop).
+`pedometer_supported()` says before any hook is used whether the device counts steps: true
+on an iPhone with step counting and an Android phone with the step counter sensor; false on
+a simulator, on the web (browsers have no step API) and on the desktop, where every count is
+`StepsUnavailable`. The first use asks
 for permission: motion on iOS (`NSMotionUsageDescription`, which an app's own `ui.toml` can
 word), activity recognition on Android 10 and later.
 

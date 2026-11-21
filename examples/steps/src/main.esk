@@ -40,6 +40,10 @@ void Walk() {
 
 void Demo() {
     Column(Style{grow: 1, padding: 24, gap: 16, justify: JustifyCenter, background: kit.page}) {
+        if (!pedometer_supported()) {
+            Secondary("This device does not count steps.");
+            return;
+        }
         Today();
         Walk();
     }
