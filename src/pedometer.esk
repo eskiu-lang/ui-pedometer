@@ -24,7 +24,8 @@ struct Steps {
     double distance = -1;
 }
 
-// The platform's side (native/ios, native/android, native/web). pedometer_start counts live
+// The platform's side (native/ios, native/android, native/web; native/macos, native/linux
+// and native/windows answer "unavailable" to everything). pedometer_start counts live
 // from now: "steps N DISTANCE" on the "pedometer" channel (DISTANCE -1 when unknown), or
 // "denied", "unavailable". pedometer_query answers "query ID N" or "query ID denied" /
 // "query ID unavailable" for the steps between two times (milliseconds since 1970).
